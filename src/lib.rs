@@ -12,21 +12,20 @@ use solana_program::{
 
 };
 use byteorder::{ByteOrder, LittleEndian};
-use std::convert::TryInto;
+//use std::convert::TryInto;
 use std::assert_eq;
-use std::mem;
+//use std::mem;
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
-use std::str::FromStr;
+//use std::str::FromStr;
 use bigint::uint::U256;
-use std::collections::HashMap;
-
+//use std::collections::HashMap;
+use sha2::{Sha256};
 pub struct store {
     // is this the right account ? I might hardcode this
-
     pub is_initialized: bool,
     pub program_id: Pubkey,
-    pub denominated_amount: u32,
-    pub amount: u32,
+    pub denominated_amount: u64,
+    pub amount: u64,
     // store of commitments to check eligibility of withdrawls
     pub commitments: [ [u8; 32]; 16],
     pub current_index: usize,
@@ -34,20 +33,25 @@ pub struct store {
 /*
 pub struct merkle_tree {
     pub is_initialized: bool,
-    pub levels: u8,
-    pub filledSubtrees : [u32; 32],
-    pub zeros : [u32; 32],
-    pub currentRootIndex : u32,
+    pub levels: u32,
+    pub filledSubtrees : [U256; 32],
+    pub zeros : [U256; 32],
+    pub currentRootIndex : usize,
     pub nextIndex : u32,
     pub ROOT_HISTORY_SIZE : u32,
-    pub roots : [u32; ROOT_HISTORY_SIZE],
+    pub roots : [U256; 10],
 }
 */
 impl  store {
-    pub fn deposit(&mut self, commitment: &[u8], amount: u32, account: &AccountInfo){
+    pub fn deposit(&mut self, commitment: &[u8], amount: u64, account: &AccountInfo){
         assert_eq!(amount, self.denominated_amount);
-        msg!("was there a transfer in ? saved balance {} actual balance {:?}", self.amount, account.lamports);
-        //assert!(self.amount < account.lamports.into());
+        if( self.amount == 0){
+             self.amount = **account.lamports.borrow() - self.denominated_amount;
+        }
+
+        msg!("was there a transfer in ? saved balance {} actual balance {:?}", self.amount, account.lamports.borrow());
+        assert!(self.amount  == **account.lamports.borrow() - self.denominated_amount);
+
         //self.amount = account.lamports;
         let mut exists = false;
         //for &mut  it in self.commitments.iter()
@@ -66,12 +70,13 @@ impl  store {
             j +=1;
         }
         assert!(!exists);
+
         self.amount += self.denominated_amount;
 
         self.commitments[self.current_index].copy_from_slice(&commitment[0..32]);
         self.current_index =( self.current_index + 1 )% 16;
         msg!("new index {} ", self.current_index);
-        msg!("new amount {:?} ", self.amount);
+        msg!("new amount {} ,real {}", self.amount, account.lamports.borrow());
 
         //add_to_merkle_tree(secret);
     }
@@ -88,6 +93,7 @@ impl  store {
                 exists = true;
                 msg!("commitments exists");
                 self.commitments[j].copy_from_slice(&[0 as u8; 32]);
+                self.amount -= self.denominated_amount;
                 break;
             }
             j +=1;
@@ -111,8 +117,9 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: 
 
     // Expect the secret, the position of the secret in the array, the amount,
     //let instruction;
-    //let FIELD_SIZE  = 21888242871839275222246405745257275088548364400416034343698204186575808495617 as U256;
-    //let ZERO_VALUE  = 21663839004416932945382355908790599225266501822907911457504978515578255421292 as U256; // = keccak256("tornado") % FIELD_SIZE
+    //let FIELD_SIZE
+    let FIELD_SIZE: U256 = U256::from("21888242871839275222246405745257275088548364400416034343698204186575808495617".as_bytes());
+    let ZERO_VALUE: U256 = U256::from("21663839004416932945382355908790599225266501822907911457504978515578255421292".as_bytes()); // = keccak256("tornado") % FIELD_SIZE
 
     let account = &mut accounts.iter();
     let account1 = next_account_info(account)?;
@@ -125,11 +132,11 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: 
     let mut hash = [0;32];
     hash.copy_from_slice(&instruction_data[0..32]);
 
-    //msg!("{:?}", hash);
-    let mut amount_arr = [0; 4];
-    amount_arr.copy_from_slice(&instruction_data[32..36]);
-    let amount = u32::from_le_bytes(amount_arr);
-    //msg!("{}", amount);
+    msg!("{:?}", hash);
+    let mut amount_arr = [0; 8];
+    amount_arr.copy_from_slice(&instruction_data[32..40]);
+    let amount = u64::from_le_bytes(amount_arr);
+    msg!("{}", amount);
 
     //unpack storage account data
     //assert!(programId == account2.owner);
@@ -142,7 +149,7 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: 
 
     //msg!("Data of storage account {:?}", data.commitments[data.current_index -1]);
 
-    if instruction_data[36] as u8 == 1 {
+    if instruction_data[40] as u8 == 1 {
 
 
         //msg!("starting deposit");
@@ -157,10 +164,10 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: 
 
     }
     //withdraw
-    else if instruction_data[36] as u8 == 0 {
+    else if instruction_data[40] as u8 == 0 {
         msg!("starting withdrawl");
         msg!(" Checking at index {}", 1);
-        let system_program_acc = next_account_info(account)?;
+        //let system_program_acc = next_account_info(account)?;
         data.withdraw(&hash);
         msg!("withdrawl successful");
         let seed = "vaultx1";
@@ -173,9 +180,9 @@ pub fn process(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: 
             &account2.key, &account1.key, amount.into());
 
 
-        **account2.try_borrow_mut_lamports()? -= 1000000000;//u64::from(data.denominated_amount);
+        **account2.try_borrow_mut_lamports()? -= u64::from(data.denominated_amount);
 
-        **account1.try_borrow_mut_lamports()? += 1000000000;//u64::from(data.denominated_amount);
+        **account1.try_borrow_mut_lamports()? += u64::from(data.denominated_amount);
 
     }
 
@@ -213,7 +220,7 @@ impl IsInitialized for store {
 }
 
 impl Pack for store{
-    const LEN: usize = 561;
+    const LEN: usize = 569;
     fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
         let input = array_ref![input, 0, store::LEN];
         let (
@@ -223,11 +230,11 @@ impl Pack for store{
             amnt,
             cmts,
             c_i,
-        ) = array_refs![input,1, 32, 4, 4, 512, 8];// HashMap (32 + 1) * 32
+        ) = array_refs![input,1, 32, 8, 8, 512, 8];// HashMap (32 + 1) * 32
 
         //let mut commitments: HashMap<[u8;64], bool> = HashMap::with_capacity(16);
-        //pub commitments: [[u8; 64]; 16];
-        msg!("almost completed array unpacking eg. {}", LittleEndian::read_u32(amnt));
+        //pub commitments: [[u8; 64]; 16]
+        msg!("almost completed array unpacking eg. {}", LittleEndian::read_u64(amnt));
         let mut commitments = [[0 as u8; 32];16];
         let mut i = 0;
         for it in cmts.chunks(32) {
@@ -239,9 +246,9 @@ impl Pack for store{
         Ok(
             store {
                 is_initialized: true,
-                denominated_amount: LittleEndian::read_u32(d_amnt),
+                denominated_amount: LittleEndian::read_u64(d_amnt),
                 program_id: Pubkey::new_from_array(*programId),
-                amount: LittleEndian::read_u32(amnt),
+                amount: LittleEndian::read_u64(amnt),
                 commitments: commitments,
                 current_index: usize::from_le_bytes(*c_i),
             }
@@ -258,7 +265,7 @@ impl Pack for store{
             amount_dst,
             commitments_dst,
             current_index_dst,
-        ) = mut_array_refs![dst,1, 32, 4, 4, 512, 8];
+        ) = mut_array_refs![dst,1, 32, 8, 8, 512, 8];
 
         let store {
             is_initialized,
@@ -298,8 +305,8 @@ impl Pack for store{
         //msg!("init {:?}", secret_dst);
         //msg!("current_index {:?}", c_i_dst);
         //commitments_dst.copy_from_slice(tmp)
-        LittleEndian::write_u32(amount_dst, *amount);
-        LittleEndian::write_u32(denominated_amount_dst, *denominated_amount);
+        LittleEndian::write_u64(amount_dst, *amount);
+        LittleEndian::write_u64(denominated_amount_dst, *denominated_amount);
         *current_index_dst = usize::to_le_bytes(*current_index);
 
         msg!("amount {:?} denominated_amount {:?}", amount_dst, denominated_amount_dst);
