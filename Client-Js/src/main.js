@@ -147,7 +147,9 @@ async function send_to_sol_vault(nr){
   farr[0] = nr;
   var barr = Buffer.from(farr.buffer);
   // hash to bytearray
-  let buf = Buffer.from(secret, "hex");
+  let buf = Buffer.from(secret, 'hex');
+  console.log("Buf Length = ",buf.length);
+
   // deposit instruction bytearray
   var inst_arr = new Uint8Array(1);
   inst_arr[0] = 1;
@@ -160,9 +162,9 @@ async function send_to_sol_vault(nr){
   const buf_t = Buffer.concat([buf,barr, inst_barr], totalLength);
 
   console.log(buf_t);
-  const buf_r = buf_t.subarray(0, 32);
+  const buf_r = buf_t.subarray(0, 64);
   console.log(buf_r);
-  const buf_n = buf_t.subarray(33, 36);
+  const buf_n = buf_t.subarray(65, 68);
   console.log(buf_n);
 
   //let buffer = Buffer.from(Uint8Array.of(0, ...xy.toArray("le", 8)));
@@ -259,7 +261,7 @@ async function create_program_acc(from_acc){
   console.log("----------------------------------");
   //console.log(program_acc.toBase58());
 
-  const storage_space = compute_space(10);
+  const storage_space = 561; // compute_space(10);
   var acc_params = {
     fromPubkey: from_acc.publicKey,
     newAccountPubkey: storage_account,
@@ -321,7 +323,8 @@ async function withdraw_sol_from_vault(nr){
   farr[0] = nr;
   var barr = Buffer.from(farr.buffer);
   // hash to bytearray
-  let buf = Buffer.from(secret, "hex");
+  let buf = Buffer.from(secret,'hex');
+  console.log(buf.length);
   // withdraw instruction bytearray
   var inst_arr = new Uint8Array(1);
   inst_arr[0] = 0;
