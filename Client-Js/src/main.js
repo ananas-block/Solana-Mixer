@@ -1,15 +1,11 @@
 const http = require('http')
-//const fs = require('fs')
-//const express = require('express')
-//const app = express()
 const path = require('path')
 const solana = require('@solana/web3.js')
 const bn = require('bn.js')
 const BufferLayout = require('buffer-layout')
 const token = require('@solana/spl-token')
 var SHA256 = require("crypto-js/sha256");
-//import { Account, Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@solana/web3.js';
-//import { Account, Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@solana/web3.js';
+
 
 const solanaRPC = 'http://localhost:8899'; //'https://api.mainnet-beta.solana.com'
 //Privatekey of account
@@ -19,6 +15,7 @@ const acc_to = 'BWE49Gpc5keWZKvpdPARzqrz5o3DnAwoJNt3zSkBgRmJ';
 const mixer_program_id = 'CmrAZ3KmbM6EL4bJQW8P5dJD75bPD12uwqd1f2Hx8KXD';
 var connection;
 const storage_account_pkey = 'Ep7nr5131gy11LhiLMMVMdaXPNw3yVifz635VruoKhni';
+const account_from = 'ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k';
 
 // Connection check
 async function getNodeConnection(url) {
@@ -30,10 +27,10 @@ async function getNodeConnection(url) {
 async function balance(address){
   //let address = acc;
   let a = new solana.PublicKey(address);
-  console.log("a = ", a);
+  //console.log("a = ", a);
   const balance = await connection.getBalance( new solana.PublicKey(address) );
 
-  console.log("Account:",address,"Balance:",balance / (1*10**9));
+  console.log("Public Key:",address,"Balance:",balance / (1*10**9));
 }
 
 async function readAcc(){
@@ -44,13 +41,6 @@ async function readAcc(){
     console.log(item);
   }
   console.log(data);
-  /*
-  const accountDataLayout = BufferLayout.struct([
-    BufferLayout.u32('vc1'),
-    BufferLayout.u32('vc2'),
-  ]);
-  console.log(accoundDataLayout);
-  */
 }
 
 async function send_sol(){
@@ -119,8 +109,8 @@ async function send_to_sol_vault(nr){
   //console.log(nr);
   //console.log(instructs);
   //Creating Transaction
-  console.log("from Account : " , account.publicKey.toBase58());
-  balance(account.publicKey.toBase58());
+  console.log("Tx sent from Account: " , account.publicKey.toBase58());
+  //balance(account.publicKey.toBase58());
 
   // create sol transaction instruction
   const tx = new solana.Transaction().add(
@@ -135,7 +125,7 @@ async function send_to_sol_vault(nr){
 
   // create new vault transaction
   let secret = SHA256("asd").toString();
-  console.log(secret);
+  //console.log(secret);
   //first 16 byte are amount + 32 byte secret
   //var buffer = new ArrayBuffer(16 + 32);
 
@@ -143,27 +133,25 @@ async function send_to_sol_vault(nr){
 
   //console.log("first bn", xy);
   //amount to bytearray
-  var farr = new Uint32Array(1);
-  farr[0] = nr;
+  var farr = new BigUint64Array(1);
+  farr[0] = BigInt(nr);
   var barr = Buffer.from(farr.buffer);
   // hash to bytearray
-  let buf = Buffer.from(secret, "hex");
+  let buf = Buffer.from(secret, 'hex');
+  //console.log("Barr Length = ",barr.length);
+
   // deposit instruction bytearray
   var inst_arr = new Uint8Array(1);
   inst_arr[0] = 1;
   var inst_barr = Buffer.from(inst_arr.buffer);
 
-  console.log(inst_barr);
+  //console.log(inst_barr);
   //let buf_nr = Buffer.from(nr.toString());
   const totalLength = buf.length + barr.length + 1;
-  console.log("Total Length = ",totalLength);
+  //console.log("Total Length = ",totalLength);
   const buf_t = Buffer.concat([buf,barr, inst_barr], totalLength);
 
-  console.log(buf_t);
-  const buf_r = buf_t.subarray(0, 32);
-  console.log(buf_r);
-  const buf_n = buf_t.subarray(33, 36);
-  console.log(buf_n);
+
 
   //let buffer = Buffer.from(Uint8Array.of(0, ...xy.toArray("le", 8)));
 
@@ -179,7 +167,7 @@ async function send_to_sol_vault(nr){
   })
 
   tx.add(vault_tx);
-  console.log(tx);
+  //console.log(tx);
 
   let x = await solana.sendAndConfirmTransaction(
       connection,
@@ -190,7 +178,7 @@ async function send_to_sol_vault(nr){
         preflightCommitment: 'singleGossip',
       },
     );
-    console.log("x ", x);
+    console.log("Deposit tx id ", x);
 }
 
 function compute_space(nr_users){
@@ -206,7 +194,7 @@ async function create_storage_acc(from_acc){
   //var lamports = 1 * 10 ** 10;
   const storage_account = new solana.Account();
   const program_acc = new solana.PublicKey(mixer_program_id);
-  console.log(program_acc.toBase58());
+  //console.log(program_acc.toBase58());
   const storage_space = compute_space(10);
   var acc_params = {fromPubkey: from_acc.publicKey,
     newAccountPubkey: storage_account.publicKey,
@@ -214,7 +202,7 @@ async function create_storage_acc(from_acc){
     space: storage_space,
     programId: program_acc,
   };
-  console.log(acc_params);
+  //console.log(acc_params);
   //const tx = new solana.TransactionInstruction();
   const tx = new solana.Transaction().add(solana.SystemProgram.createAccount(acc_params));
   tx.recentBlockhash = await connection.getRecentBlockhash();
@@ -230,8 +218,8 @@ async function create_storage_acc(from_acc){
           preflightCommitment: 'singleGossip',
         },
       );
-      console.log("Storage account creation tx ", x);
-      console.log("storage account pubkey = ", storage_account.publicKey.toBase58());
+      //console.log("Storage account creation tx ", x);
+      //console.log("storage account pubkey = ", storage_account.publicKey.toBase58());
   //return storage_account.publicKey;
 }
 
@@ -241,8 +229,8 @@ async function create_program_acc(from_acc){
   const program_acc = new solana.PublicKey(mixer_program_id);
   let seed = "vaultx1" ;
   var inst_arr = new Uint8Array(Buffer.from(seed));
-  console.dir(Buffer.from(seed));
-  console.dir(inst_arr);
+  //console.dir(Buffer.from(seed));
+  //console.dir(inst_arr);
   //inst_arr = Buffer.from(seed);
   //console.log(Buffer.from(seed));
   //console.log(from_acc.publicKey);
@@ -254,12 +242,12 @@ async function create_program_acc(from_acc){
   );
   //EtD9SCEAp6ozZs8hqTcfRpMPVT8WEY7hA9iNAWdbdRzR
   //const storage_account = solana.PublicKey.createProgramAddress("vaultx1" ,program_acc);
-  console.log("----------------------------------");
-  console.log(storage_account.toBase58());
-  console.log("----------------------------------");
+  //console.log("----------------------------------");
+  //console.log(storage_account.toBase58());
+  //console.log("----------------------------------");
   //console.log(program_acc.toBase58());
 
-  const storage_space = compute_space(10);
+  const storage_space = 569; // compute_space(10);
   var acc_params = {
     fromPubkey: from_acc.publicKey,
     newAccountPubkey: storage_account,
@@ -269,13 +257,13 @@ async function create_program_acc(from_acc){
     space: storage_space,
     programId: program_acc,
   };
-  console.log(acc_params);
+  //console.log(acc_params);
   //const tx = new solana.TransactionInstruction();
   const tx = new solana.Transaction().add(solana.SystemProgram.createAccountWithSeed(acc_params));
   tx.recentBlockhash = await connection.getRecentBlockhash();
   //tx.feePayer = from_acc.publicKey;
-  console.log(tx);
-  console.log("-------------------------------------------")
+  //console.log(tx);
+  //console.log("-------------------------------------------")
 
   let x = await solana.sendAndConfirmTransaction(
         connection,
@@ -303,7 +291,7 @@ async function withdraw_sol_from_vault(nr){
   let params = {fromPubkey: account.publicKey, toPubkey: storage_account_pkey};
 
   //Creating Transaction
-  console.log("from Account : " , account.publicKey.toBase58());
+  console.log("Tx sent from Account: " , account.publicKey.toBase58());
 
   // create sol transaction instruction
   const tx = new solana.Transaction();
@@ -312,16 +300,17 @@ async function withdraw_sol_from_vault(nr){
 
   // create new vault transaction
   let secret = SHA256("asd").toString();
-  console.log(secret);
+  //console.log(secret);
   //first 16 byte are amount + 32 byte secret
   //var buffer = new ArrayBuffer(16 + 32);
 
   //amount to bytearray
-  var farr = new Uint32Array(1);
-  farr[0] = nr;
+  var farr = new BigUint64Array(1);
+  farr[0] = BigInt(nr);
   var barr = Buffer.from(farr.buffer);
   // hash to bytearray
-  let buf = Buffer.from(secret, "hex");
+  let buf = Buffer.from(secret,'hex');
+  //console.log(buf.length);
   // withdraw instruction bytearray
   var inst_arr = new Uint8Array(1);
   inst_arr[0] = 0;
@@ -336,14 +325,14 @@ async function withdraw_sol_from_vault(nr){
     keys: [
       { pubkey: account.publicKey, isSigner: true, isWritable: true},
       { pubkey: storage_account_pkey, isSigner: false, isWritable: true},
-      { pubkey: new solana.PublicKey('11111111111111111111111111111111')},
+      //{ pubkey: new solana.PublicKey('11111111111111111111111111111111')},
     ],
     data: buf_t
 
   })
 
   tx.add(vault_tx);
-  console.log(tx);
+  //console.log(tx);
 
   let x = await solana.sendAndConfirmTransaction(
       connection,
@@ -354,13 +343,14 @@ async function withdraw_sol_from_vault(nr){
         preflightCommitment: 'singleGossip',
       },
     );
-    console.log("x ", x);
+    console.log("Withdraw tx id: ", x);
 }
 
 
 getNodeConnection(solanaRPC).then(async function() {
 
-  console.log(" starting transaction");
+  //console.log(" starting transaction");
+  //console.log(process.argv[2]);
   const privateKeyDecoded = acc.split(',').map(s => parseInt(s));
 
   const account = new solana.Account(privateKeyDecoded);
@@ -369,15 +359,28 @@ getNodeConnection(solanaRPC).then(async function() {
   //balance(acc_to);
   //await send_sol();
   //var storage_acc = new solana.Account();
-  //let x = create_program_acc(account);
+  //await create_program_acc(account);
   //console.log(compute_space(10));
-  //await send_to_sol_vault(1 * (10 ** 9));
+  if(process.argv[2] == 'init storage account'){
+    await create_program_acc(account);
+    console.log("Storage account creation successful");
+  }
+  else if(process.argv[2] == 'Deposit SOL'){
+    await send_to_sol_vault(1 * (10 ** 9));
+    console.log("Deposit of 1 SOL successful");
+    balance(account_from);
+    balance(storage_account_pkey);
+  }
   //readAcc();
-  await withdraw_sol_from_vault(1 * (10 ** 8));
-  let seed = "vaultx1" ;
-  console.dir(Buffer.from(seed));
-
-  /*
+  else if(process.argv[2] == 'Withdraw SOL'){
+    await withdraw_sol_from_vault(1 * (10 ** 9));
+    console.log("Withdrawl of 1 SOL successful");
+    balance(account_from);
+    balance(storage_account_pkey);
+  }
+  //let b = Buffer.from("21663839004416932945382355908790599225266501822907911457504978515578255421292");
+  //console.dir(b.length);
+/*
   //And back to hash
   let arr = Uint8Array.of(104, 135, 135, 216, 255, 20, 76, 80, 44, 127, 92, 255, 170, 254, 44, 197, 136, 216, 96, 121, 249, 222, 136, 48, 76, 38, 176, 203, 153, 206, 145, 198);
   let buf = Buffer.from(arr);
