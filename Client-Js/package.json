@@ -4,9 +4,10 @@
   "description": "Client to interact with a Vault",
   "main": "src/main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "run": "node src/main.js"
   },
-  "author": "",
+  "author": "ananas-block",
   "license": "AGPL-3.0",
   "dependencies": {
     "@solana/spl-token": "^0.0.13",

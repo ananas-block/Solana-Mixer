@@ -1,15 +1,11 @@
 const http = require('http')
-//const fs = require('fs')
-//const express = require('express')
-//const app = express()
 const path = require('path')
 const solana = require('@solana/web3.js')
 const bn = require('bn.js')
 const BufferLayout = require('buffer-layout')
 const token = require('@solana/spl-token')
 var SHA256 = require("crypto-js/sha256");
-//import { Account, Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@solana/web3.js';
-//import { Account, Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@solana/web3.js';
+
 
 const solanaRPC = 'http://localhost:8899'; //'https://api.mainnet-beta.solana.com'
 //Privatekey of account
@@ -19,6 +15,7 @@ const acc_to = 'BWE49Gpc5keWZKvpdPARzqrz5o3DnAwoJNt3zSkBgRmJ';
 const mixer_program_id = 'CmrAZ3KmbM6EL4bJQW8P5dJD75bPD12uwqd1f2Hx8KXD';
 var connection;
 const storage_account_pkey = 'Ep7nr5131gy11LhiLMMVMdaXPNw3yVifz635VruoKhni';
+const account_from = 'ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k';
 
 // Connection check
 async function getNodeConnection(url) {
@@ -30,10 +27,10 @@ async function getNodeConnection(url) {
 async function balance(address){
   //let address = acc;
   let a = new solana.PublicKey(address);
-  console.log("a = ", a);
+  //console.log("a = ", a);
   const balance = await connection.getBalance( new solana.PublicKey(address) );
 
-  console.log("Account:",address,"Balance:",balance / (1*10**9));
+  console.log("Public Key:",address,"Balance:",balance / (1*10**9));
 }
 
 async function readAcc(){
@@ -44,13 +41,6 @@ async function readAcc(){
     console.log(item);
   }
   console.log(data);
-  /*
-  const accountDataLayout = BufferLayout.struct([
-    BufferLayout.u32('vc1'),
-    BufferLayout.u32('vc2'),
-  ]);
-  console.log(accoundDataLayout);
-  */
 }
 
 async function send_sol(){
@@ -119,7 +109,7 @@ async function send_to_sol_vault(nr){
   //console.log(nr);
   //console.log(instructs);
   //Creating Transaction
-  console.log("Send from Account : " , account.publicKey.toBase58());
+  console.log("Tx sent from Account: " , account.publicKey.toBase58());
   //balance(account.publicKey.toBase58());
 
   // create sol transaction instruction
@@ -301,7 +291,7 @@ async function withdraw_sol_from_vault(nr){
   let params = {fromPubkey: account.publicKey, toPubkey: storage_account_pkey};
 
   //Creating Transaction
-  console.log("Tx from Account : " , account.publicKey.toBase58());
+  console.log("Tx sent from Account: " , account.publicKey.toBase58());
 
   // create sol transaction instruction
   const tx = new solana.Transaction();
@@ -359,7 +349,8 @@ async function withdraw_sol_from_vault(nr){
 
 getNodeConnection(solanaRPC).then(async function() {
 
-  console.log(" starting transaction");
+  //console.log(" starting transaction");
+  //console.log(process.argv[2]);
   const privateKeyDecoded = acc.split(',').map(s => parseInt(s));
 
   const account = new solana.Account(privateKeyDecoded);
@@ -370,11 +361,26 @@ getNodeConnection(solanaRPC).then(async function() {
   //var storage_acc = new solana.Account();
   //await create_program_acc(account);
   //console.log(compute_space(10));
-  await send_to_sol_vault(1 * (10 ** 9));
+  if(process.argv[2] == 'init storage account'){
+    await create_program_acc(account);
+    console.log("Storage account creation successful");
+  }
+  else if(process.argv[2] == 'Deposit SOL'){
+    await send_to_sol_vault(1 * (10 ** 9));
+    console.log("Deposit of 1 SOL successful");
+    balance(account_from);
+    balance(storage_account_pkey);
+  }
   //readAcc();
-  await withdraw_sol_from_vault(1 * (10 ** 9));
-
-  /*
+  else if(process.argv[2] == 'Withdraw SOL'){
+    await withdraw_sol_from_vault(1 * (10 ** 9));
+    console.log("Withdrawl of 1 SOL successful");
+    balance(account_from);
+    balance(storage_account_pkey);
+  }
+  //let b = Buffer.from("21663839004416932945382355908790599225266501822907911457504978515578255421292");
+  //console.dir(b.length);
+/*
   //And back to hash
   let arr = Uint8Array.of(104, 135, 135, 216, 255, 20, 76, 80, 44, 127, 92, 255, 170, 254, 44, 197, 136, 216, 96, 121, 249, 222, 136, 48, 76, 38, 176, 203, 153, 206, 145, 198);
   let buf = Buffer.from(arr);
